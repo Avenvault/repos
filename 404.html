@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Avenvault Repository Directory</title>
+    <style>
+        :root {
+            --bg-color: #0f1117;
+            --sidebar-bg: #161b22;
+            --border-color: #30363d;
+            --text-main: #c9d1d9;
+            --text-muted: #8b949e;
+            --accent: #58a6ff;
+            --accent-hover: #1f6feb;
+        }
+
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        sidebar {
+            width: 320px;
+            background-color: var(--sidebar-bg);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        h2 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 10px 12px;
+            background-color: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-main);
+            font-size: 0.95rem;
+            box-sizing: border-box;
+            margin-bottom: 15px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .search-box:focus {
+            border-color: var(--accent);
+        }
+
+        .repo-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+
+        .repo-item {
+            padding: 10px 12px;
+            margin-bottom: 6px;
+            background-color: rgba(255, 255, 255, 0.02);
+            border: 1px solid transparent;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .repo-item:hover {
+            background-color: rgba(88, 166, 255, 0.1);
+            border-color: var(--border-color);
+        }
+
+        .repo-name {
+            font-weight: 600;
+            color: var(--accent);
+            font-size: 0.95rem;
+        }
+
+        .repo-path {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 3px;
+            word-break: break-all;
+        }
+
+        main {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .error-card {
+            background-color: var(--sidebar-bg);
+            border: 1px solid var(--border-color);
+            padding: 40px;
+            border-radius: 12px;
+            max-width: 500px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+        }
+
+        h1 {
+            color: #ff7b72;
+            margin-top: 0;
+            font-size: 2rem;
+        }
+
+        p {
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        .home-btn {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: var(--accent-hover);
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            transition: background-color 0.2s;
+        }
+
+        .home-btn:hover {
+            background-color: var(--accent);
+            color: #000;
+        }
+    </style>
+</head>
+<body>
+
+    <sidebar>
+        <h2>Available Repos</h2>
+        <input type="text" id="search" class="search-box" placeholder="Search libraries..." onkeyup="filterRepos()">
+        <ul id="repoList" class="repo-list">
+            <li class="repo-item" style="text-align:center; color: var(--text-muted);">Searching repository...</li>
+        </ul>
+    </sidebar>
+
+    <main>
+        <div class="error-card">
+            <h1>404</h1>
+            <p>Oops! This repo or path isn't here 🕵️‍♂️</p>
+            <p style="font-size: 0.9rem;">You might have mistyped the URL, or the artifact hasn't been uploaded yet. Check the sidebar for active repositories!</p>
+            <a href="/" class="home-btn">Return Home</a>
+        </div>
+    </main>
+
+    <script>
+        async function loadRepositories() {
+            const repoListEl = document.getElementById('repoList');
+            const pathSegments = window.location.pathname.split('/').filter(Boolean);
+            
+            const hostname = window.location.hostname;
+            let owner = "";
+            let repo = "";
+
+            if (hostname.includes("github.io")) {
+                const parts = hostname.split('.');
+                owner = parts[0];
+                repo = pathSegments.length > 0 ? pathSegments[0] : ""; 
+            }
+
+            const apiURL = `https://api.github.com/repos/avenvault/repos/git/trees/main?recursive=1`;
+
+            try {
+                const response = await fetch(`https://api.github.com/search/code?q=extension:pom+repo:avenvault/repos`);
+                fetchTree();
+            } catch (err) {
+                repoListEl.innerHTML = `<li class="repo-item"><span class="repo-name">Error loading list</span><div class="repo-path">Check API limits</div></li>`;
+            }
+        }
+
+        async function fetchTree() {
+            const repoListEl = document.getElementById('repoList');
+            try {
+                const owner = "avenvault"; 
+                const repoName = "repos";
+                
+                const res = await fetch(`https://api.github.com/repos/${owner}/${repoName}/git/trees/main?recursive=1`);
+                const data = await res.json();
+
+                if (!data.tree) {
+                    repoListEl.innerHTML = `<li class="repo-item"><span class="repo-name">No artifacts found</span></li>`;
+                    return;
+                }
+
+                const pomFiles = data.tree.filter(item => item.path.endsWith('.pom'));
+                
+                repoListEl.innerHTML = "";
+
+                if (pomFiles.length === 0) {
+                    repoListEl.innerHTML = `<li class="repo-item"><span class="repo-name">No libraries found yet</span></li>`;
+                    return;
+                }
+
+                pomFiles.forEach(file => {
+                    const parts = file.path.split('/');
+                    const artifactName = parts[parts.length - 2] === '1.0.0' || !isNaN(parts[parts.length - 2]) 
+                        ? parts[parts.length - 3] 
+                        : parts[parts.length - 2];
+                    
+                    const cleanPath = "/" + file.path.replace('.pom', '');
+
+                    const li = document.createElement('li');
+                    li.className = 'repo-item';
+                    li.onclick = () => window.location.href = "/" + file.path;
+                    
+                    li.innerHTML = `
+                        <div class="repo-name">${file.path.includes('discord') ? '💬 ' : '📦 '} ${artifactName}</div>
+                        <div class="repo-path">/${file.path}</div>
+                    `;
+                    repoListEl.appendChild(li);
+                });
+
+            } catch (e) {
+                repoListEl.innerHTML = `<li class="repo-item"><span class="repo-name">Could not fetch tree</span><div class="repo-path">API rate limit reached</div></li>`;
+            }
+        }
+
+        function filterRepos() {
+            const input = document.getElementById('search').value.toLowerCase();
+            const items = document.getElementsByClassName('repo-item');
+            
+            for (let i = 0; i < items.length; i++) {
+                const text = items[i].innerText.toLowerCase();
+                items[i].style.display = text.includes(input) ? "" : "none";
+            }
+        }
+
+        // Run on load
+        window.onload = fetchTree;
+    </script>
+</body>
+</html>
